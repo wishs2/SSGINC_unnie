@@ -1,4 +1,10 @@
 # SSGINC_unnie
+
+> This repository is a personal fork of the original team project for refactoring and study purposes.
+
+> 이 레포지토리는 리팩토링 및 공부를 위한 기존 팀 프로젝트의 개인 포크입니다.
+
+
 ![image](https://github.com/user-attachments/assets/4c4f5183-9d08-433f-8639-abf8835aea47)
 
 위치 및 영수증 기반 뷰티 업체 리뷰 커뮤니티 웹 플랫폼 "언니어때" 입니다.
