@@ -26,18 +26,25 @@
         <!-- 2) OCR 결과 확인 및 수정 영역 -->
         <div class="checkOcr" id="checkOcrSection" style="display: none;">
             <h2>이곳에 다녀오신 게 맞으신가요?</h2>
+
+            <input type="hidden" id="businessNumber">
+            <input type="hidden" id="approvalNumber">
+
             <div class="ocr-field">
                 <label for="shopName">업체 이름</label>
-                <input type="text" id="shopName" name="shopName" placeholder="업체 이름">
+                <input type="text" id="shopName" placeholder="업체 이름">
             </div>
+
             <div class="ocr-field">
                 <label for="totalAmount">결제 금액</label>
-                <input type="text" id="totalAmount" name="totalAmount" placeholder="결제 금액">
+                <input type="text" id="totalAmount" placeholder="결제 금액">
             </div>
+
             <div class="ocr-field">
                 <label for="paymentDate">결제 날짜</label>
-                <input type="text" id="paymentDate" name="paymentDate" placeholder="결제 날짜">
+                <input type="text" id="paymentDate" placeholder="결제 날짜">
             </div>
+
             <button type="button" id="saveReceipt" class="save-btn">영수증 저장</button>
         </div>
     </main>

@@ -6,6 +6,7 @@ import com.ssginc.unnie.common.util.ErrorCode;
 import com.ssginc.unnie.member.mapper.MemberMapper;
 import com.ssginc.unnie.reservation.dto.ReservationHoldRequest;
 import com.ssginc.unnie.reservation.dto.ReservationIdRow;
+import com.ssginc.unnie.reservation.dto.ReservationResponse;
 import com.ssginc.unnie.reservation.mapper.ReservationMapper;
 import com.ssginc.unnie.reservation.service.ReservationService;
 import lombok.RequiredArgsConstructor;
@@ -81,7 +82,7 @@ public class ReservationServiceImpl implements ReservationService {
 
     @Transactional(readOnly = true)
     @Override
-    public com.ssginc.unnie.reservation.dto.ReservationResponse getReservationById(Long reservationId) {
+    public ReservationResponse getReservationById(Long reservationId) {
         return reservationMapper.findReservationById(reservationId);
     }
 

@@ -22,7 +22,7 @@
         JOIN receipt rc ON r.review_receipt_id = rc.receipt_id
         JOIN shop s ON rc.receipt_shop_id = s.shop_id
         LEFT JOIN review_keyword rk ON r.review_id = rk.review_id
-        LEFT JOIN keywords k ON rk.keyword_id = k.keyword_id
+        LEFT JOIN keyword k ON rk.keyword_id = k.keyword_id
         WHERE r.review_status = 0
         AND r.review_member_id = #{reviewMemberId}
         GROUP BY r.review_id
@@ -44,12 +44,12 @@
     <!-- 리뷰 개수 조회 -->
     <select id="getReviewCountByMemberId" resultType="int">
         SELECT
-            COUNT(DISTINCT r.review_id)
+        COUNT(DISTINCT r.review_id)
         FROM review r
-                 JOIN receipt rc ON r.review_receipt_id = rc.receipt_id
-                 JOIN shop s ON rc.receipt_shop_id = s.shop_id
+        JOIN receipt rc ON r.review_receipt_id = rc.receipt_id
+        JOIN shop s ON rc.receipt_shop_id = s.shop_id
         WHERE r.review_status = 0
-          AND r.review_member_id = #{reviewMemberId}
+        AND r.review_member_id = #{reviewMemberId}
     </select>
 
 </mapper>

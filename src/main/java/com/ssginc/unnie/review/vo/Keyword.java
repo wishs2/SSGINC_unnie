@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class Keywords {
+public class Keyword {
     private int keywordId; //키워드 번호
     private String keyword; //키워드
 }

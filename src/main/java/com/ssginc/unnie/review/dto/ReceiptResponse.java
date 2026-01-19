@@ -4,7 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Data
 @AllArgsConstructor
@@ -16,4 +15,16 @@ public class ReceiptResponse {
     private String receiptApprovalNumber; //카드 승인번호
     private String receiptShopName; //상호명
 //    private List<ReceiptItemResponse> items; //결제 상품목록
+
+
+    public static ReceiptResponse from(ReceiptRequest request) {
+        return new ReceiptResponse(
+                request.getReceiptId(),
+                request.getReceiptDate(),
+                request.getReceiptAmount(),
+                request.getReceiptBusinessNumber(),
+                request.getReceiptApprovalNumber(),
+                request.getReceiptShopName()
+        );
+    }
 }
