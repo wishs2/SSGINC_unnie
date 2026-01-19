@@ -23,15 +23,6 @@ public interface ReceiptService {
     ReceiptResponse getReceiptById(long receiptId);
 
     /**
-     * 영수증이 인증되었는지 확인하는 메서드.
-     * 예: 영수증 승인번호가 "데이터 없음"이 아니거나, 특정 상태 플래그가 인증된 상태인지 체크.
-     *
-     * @param receiptId 확인할 영수증 ID
-     * @return 인증된 영수증이면 true, 아니면 false
-     */
-    boolean isReceiptVerified(long receiptId);
-
-    /**
      * 주어진 영수증 ID로 해당 영수증의 샵 ID를 조회합니다.
      * @param receiptId 조회할 영수증 ID
      * @return 영수증에 연결된 샵 ID

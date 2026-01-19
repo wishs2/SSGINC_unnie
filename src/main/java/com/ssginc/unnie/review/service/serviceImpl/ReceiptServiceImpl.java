@@ -4,9 +4,6 @@ import com.ssginc.unnie.common.exception.UnnieReviewException;
 import com.ssginc.unnie.common.util.ErrorCode;
 import com.ssginc.unnie.review.dto.ReceiptRequest;
 import com.ssginc.unnie.review.dto.ReceiptResponse;
-import com.ssginc.unnie.review.dto.ReceiptItemRequest;
-import com.ssginc.unnie.review.dto.ReceiptItemResponse;
-import com.ssginc.unnie.review.mapper.ReceiptItemMapper;
 import com.ssginc.unnie.review.mapper.ReceiptMapper;
 import com.ssginc.unnie.review.service.ReceiptService;
 import com.ssginc.unnie.common.util.validation.Validator;
@@ -15,10 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,8 +19,7 @@ import java.util.stream.Collectors;
 public class ReceiptServiceImpl implements ReceiptService {
 
     private final ReceiptMapper receiptMapper;
-    private final ReceiptItemMapper receiptItemMapper;
-    private final Validator<ReceiptRequest> receiptValidator;
+    private final Validator<ReceiptRequest> receiptSaveValidator;
 
     /**
      * OCR 데이터를 기반으로 영수증과 품목 데이터를 DB에 저장 (DTO를 통해 처리)
@@ -35,58 +27,31 @@ public class ReceiptServiceImpl implements ReceiptService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ReceiptResponse saveReceipt(ReceiptRequest receiptRequest) {
-        // 1. 영수증 유효성 검증
-        if (!receiptValidator.validate(receiptRequest)) {
-            log.error("유효하지 않은 영수증 데이터: {}", receiptRequest);
-            throw new UnnieReviewException(ErrorCode.INVALID_RECEIPT);
-        }
-        // 업체명 입력시 공백 제거 후 DB 저장
-        String shopName = receiptRequest.getReceiptShopName().trim().replaceAll("\\s+", "");
-        receiptRequest.setReceiptShopName(shopName);
-        log.info("DB에 저장된 업체명: {}", shopName);
 
-        // shop_name을 기반으로 shop_id 조회
-        int shopId = receiptMapper.findShopIdByName(shopName);
-        log.info("findShopIdByName: {}", shopId);
+        // 1. 데이터 검증 (주입받은 Validator 활용)
+        receiptSaveValidator.validate(receiptRequest);
 
-        // 조회된 shop_id를 receipt 객체에 설정
-        if (shopId > 0) {
+        // 2. shop 이름 정규화 (전처리)
+        String normalizedShopName = receiptRequest.getReceiptShopName().trim().replaceAll("\\s+", " ");
+        receiptRequest.setReceiptShopName(normalizedShopName);
+
+        // 3. shopID 매핑 로직 개선
+        // 결과가 없을 경우를 대비해 Integer로 받거나 명확한 체크 필요
+        Integer shopId = receiptMapper.findShopIdByName(normalizedShopName);
+        if (shopId != null && shopId > 0) {
             receiptRequest.setReceiptShopId(shopId);
+        } else {
+            log.warn("해당 이름의 업체를 찾을 수 없음: {}", normalizedShopName);
+            // 필요시 새로운 업체를 등록하거나, 특정 에러를 던질 수 있음
         }
 
-        // 2. 영수증 저장
+        // 4. 영수증 저장
         receiptMapper.insertReceipt(receiptRequest);
-        log.info("영수증 저장 완료 (ID: {})", receiptRequest.getReceiptId());
 
-        // 3. 품목 저장 - OCRParser에서 임시 값 대신, DB에서 생성된 영수증 ID를 할당
-        List<ReceiptItemRequest> items = Optional.ofNullable(receiptRequest.getItems())
-                .orElse(Collections.emptyList());
-        items.forEach(item -> {
-            // DB에서 생성된 영수증 ID를 각 품목에 할당
-            item.setReceiptId(receiptRequest.getReceiptId());
-            receiptItemMapper.insertReceiptItem(item);
-        });
-
-        // 4. 저장된 데이터를 DTO로 변환하여 반환
-        List<ReceiptItemResponse> receiptItemResponses = items.stream()
-                .map(item -> new ReceiptItemResponse(
-                        item.getReceiptId(),
-                        item.getReceiptItemId(),
-                        item.getReceiptItemName(),
-                        item.getReceiptItemPrice(),
-                        item.getReceiptItemQuantity()
-                ))
-                .collect(Collectors.toList());
-
-        return new ReceiptResponse(
-                receiptRequest.getReceiptId(),
-                receiptRequest.getReceiptDate(),
-                receiptRequest.getReceiptAmount(),
-                receiptRequest.getReceiptBusinessNumber(),
-                receiptRequest.getReceiptApprovalNumber(),
-                receiptRequest.getReceiptShopName()
-        );
+        // 5. 응답 생성 (receiptRequest에 담긴 자동 생성된 ID 활용)
+        return ReceiptResponse.from(receiptRequest); // ReceiptResponse에 정적 팩토리 메서드 추가
     }
+
 
     /**
      * 특정 영수증을 조회하여 응답 DTO로 변환
@@ -99,30 +64,9 @@ public class ReceiptServiceImpl implements ReceiptService {
             throw new UnnieReviewException(ErrorCode.RECEIPT_NOT_FOUND);
         }
 
-        List<ReceiptItemResponse> receiptItems = receiptItemMapper.findItemsByReceiptId(receiptId);
-
-        return new ReceiptResponse(
-                receiptResponse.getReceiptId(),
-                receiptResponse.getReceiptDate(),
-                receiptResponse.getReceiptAmount(),
-                receiptResponse.getReceiptBusinessNumber(),
-                receiptResponse.getReceiptApprovalNumber(),
-                receiptResponse.getReceiptShopName()
-        );
+        return new ReceiptResponse(receiptResponse.getReceiptId(), receiptResponse.getReceiptDate(), receiptResponse.getReceiptAmount(), receiptResponse.getReceiptBusinessNumber(), receiptResponse.getReceiptApprovalNumber(), receiptResponse.getReceiptShopName());
     }
 
-    /**
-     * 영수증의 유효성 (인증 여부) 확인
-     */
-    @Override
-    public boolean isReceiptVerified(long receiptId) {
-        return Optional.ofNullable(receiptMapper.findReceiptById(receiptId))
-                .map(receipt -> {
-                    String approvalNumber = receipt.getReceiptApprovalNumber();
-                    return approvalNumber != null && !approvalNumber.equals("데이터 없음");
-                })
-                .orElse(false);
-    }
 
     @Override
     public long getShopIdByReceiptId(long receiptId) {

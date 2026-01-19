@@ -1,5 +1,6 @@
 package com.ssginc.unnie.common.config;
 
+import com.ssginc.unnie.common.util.DevAuthenticationFilter;
 import com.ssginc.unnie.common.util.JwtFilter;
 import com.ssginc.unnie.member.service.serviceImpl.MemberDetailsServiceImpl;
 import jakarta.servlet.http.HttpServletResponse;
@@ -24,12 +25,15 @@ public class SecurityConfig {
 
     private final MemberDetailsServiceImpl memberDetailsService;
     private final JwtFilter jwtFilter;
+    private final DevAuthenticationFilter devAuthenticationFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable()) // CSRF 비활성화
                 .authorizeHttpRequests(auth -> auth
+                        //개발 모드
+                        .requestMatchers("/dev/**").permitAll()
                         //리뷰 작성 - 로그인한 사용자만 접근
                         .requestMatchers("/review/**").authenticated()
                         //마이페이지 관련 - 로그인한 사용자만 접근
@@ -77,6 +81,7 @@ public class SecurityConfig {
                 )
 
 
+                .addFilterBefore(devAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 

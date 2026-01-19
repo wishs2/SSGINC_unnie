@@ -10,8 +10,7 @@
             member_name,
             member_nickname,
             member_phone,
-            member_profile,
-            member_provider
+            member_profile
         FROM member
         WHERE member_id = #{memberId}
     </select>

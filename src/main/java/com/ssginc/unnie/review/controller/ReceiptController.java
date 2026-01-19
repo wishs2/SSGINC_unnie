@@ -1,6 +1,7 @@
 package com.ssginc.unnie.review.controller;
 
 import com.ssginc.unnie.common.util.ResponseDto;
+import com.ssginc.unnie.common.util.validation.ReceiptSaveValidator;
 import com.ssginc.unnie.common.util.validation.Validator;
 import com.ssginc.unnie.review.dto.ReceiptRequest;
 import com.ssginc.unnie.review.dto.ReceiptResponse;
@@ -17,26 +18,36 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 public class ReceiptController {
 
+
     private final ReceiptService receiptService;
-    private final Validator<ReceiptRequest> receiptValidator;
+    private final ReceiptSaveValidator receiptSaveValidator;
 
     /**
-     * OCR 분석된 영수증을 DB에 저장하는
+     * 검증을 다 거친 OCR 데이터를 DB에 저장
+     *
+     * @param receiptRequest
+     * @return
      */
     @PostMapping("/save")
-    public ResponseEntity<ResponseDto<ReceiptResponse>> saveReceipt(@RequestBody ReceiptRequest receiptRequest) {
-        log.info("영수증 저장 요청: {}", receiptRequest);
+    public ResponseEntity<ResponseDto<ReceiptResponse>> saveReceipt
+                                        (@RequestBody ReceiptRequest receiptRequest) {
+        log.info("영수증 데이터: {}", receiptRequest); // 여기서 데이터가 잘 들어오는지 로그 확인 필수!
 
-        // 검증 실패 시 서비스 또는 글로벌 예외 핸들러에서 처리하도록
-        // 잘못된 데이터가 서비스 로직에 전달되지 않도록 초기 단계에서 바로 차단
-        if (!receiptValidator.validate(receiptRequest)) {
-            throw new IllegalArgumentException("유효하지 않은 영수증 데이터");
+        try {
+            if (!receiptSaveValidator.validate(receiptRequest)) {
+                return ResponseEntity.badRequest()
+                        .body(new ResponseDto<>(HttpStatus.BAD_REQUEST.value(), "필수 데이터가 누락되었습니다.", null));
+            }
+
+            ReceiptResponse savedReceipt = receiptService.saveReceipt(receiptRequest);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(new ResponseDto<>(HttpStatus.CREATED.value(), "저장 성공", savedReceipt));
+
+        } catch (Exception e) {
+            log.error("저장 중 에러 발생: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseDto<>(500, "서버 오류: " + e.getMessage(), null));
         }
-
-        ReceiptResponse savedReceipt = receiptService.saveReceipt(receiptRequest);
-        log.info("영수증 저장 완료: {}", savedReceipt);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new ResponseDto<>(HttpStatus.CREATED.value(), "영수증 저장 성공", savedReceipt));
     }
 
     /**

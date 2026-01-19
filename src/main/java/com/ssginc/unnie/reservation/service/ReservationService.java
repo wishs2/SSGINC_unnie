@@ -1,6 +1,7 @@
 package com.ssginc.unnie.reservation.service;
 
 import com.ssginc.unnie.reservation.dto.ReservationHoldRequest;
+import com.ssginc.unnie.reservation.dto.ReservationResponse;
 import com.ssginc.unnie.reservation.dto.ReservationUpdateRequest;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,5 +16,5 @@ public interface ReservationService {
 
 
     @Transactional(readOnly = true)
-    com.ssginc.unnie.reservation.dto.ReservationResponse getReservationById(Long reservationId);
+    ReservationResponse getReservationById(Long reservationId);
 }

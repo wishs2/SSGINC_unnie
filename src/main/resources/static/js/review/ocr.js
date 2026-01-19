@@ -1,96 +1,169 @@
-// 전역 변수에 OCR 결과(ReceiptRequest 전체)를 임시 저장
-let currentReceiptData = {};
+// 최상단에 선언하여 모든 함수에서 접근 가능하게 함
+let currentDraft = {};
 
-// 1) OCR 업로드 폼 전송
+/**
+ * 1) OCR 업로드 및 결과 파싱
+ */
 document.getElementById("ocrForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-
     const fileInput = document.getElementById("ocrFile");
-    if (!fileInput.files.length) {
-        alert("파일을 선택해주세요!");
-        return;
-    }
+    if (!fileInput.files.length) return alert("파일을 선택해주세요!");
 
     const formData = new FormData();
     formData.append("file", fileInput.files[0]);
 
     try {
-        // /api/ocr/upload 엔드포인트로 POST 요청
         const response = await fetch("/api/ocr/upload", {
             method: "POST",
             credentials: "include",
             body: formData
         });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        // JSON 파싱
         const result = await response.json();
-
-        // OCR 결과(ResponseDto)에서 data 필드를 ReceiptRequest 형태라 가정
-        if (result.data) {
-            // OCR 결과 전체를 전역 변수에 저장
-            currentReceiptData = result.data;
-
-            // 화면에 필요한 필드만 추출해서 입력 필드에 세팅
-            document.getElementById("shopName").value = result.data.receiptShopName || "";
-            document.getElementById("totalAmount").value = result.data.receiptAmount || "";
-            // receiptDate가 문자열 형식이어야 하므로 필요시 포맷 변경 (여기서는 그대로 사용)
-            document.getElementById("paymentDate").value = result.data.receiptDate || "";
-
-            // 수정 영역 보이기
-            document.getElementById("checkOcrSection").style.display = "block";
-        } else {
-            alert("OCR 분석 결과에 데이터가 없습니다.");
+        if (!result.data || !result.data.confirmed) {
+            alert("OCR 분석 결과가 없습니다.");
+            return;
         }
+
+        // 1. 데이터 추출 및 currentDraft 할당
+        // OCR 업로드 성공 후 처리 로직 부분
+        const confirmedData = result.data.confirmed; // [ {type: 'SHOP_NAME', value: '...'}, ... ]
+
+        let extracted = {};
+
+        // ===== 기존 코드 (문제 있는 부분) =====
+        // confirmedData.forEach(field => {
+        //     switch(field.type) {
+        //         case 'SHOP_NAME':
+        //             extracted.shopName = field.value;
+        //             document.getElementById("shopName").value = field.value;
+        //             break;
+        //         case 'AMOUNT':
+        //             extracted.amount = field.value;
+        //             document.getElementById("totalAmount").value = field.value;
+        //             break;
+        //         case 'DATE_TIME':
+        //             extracted.dateTime = field.value;
+        //             document.getElementById("paymentDate").value = field.value;
+        //             break;
+        //         case 'BUSINESS_NUMBER':
+        //             extracted.businessNumber = field.value;
+        //             document.getElementById("businessNumber").value = field.value;
+        //             break;
+        //         case 'APPROVAL_NUMBER':
+        //             extracted.approvalNumber = field.value;
+        //             document.getElementById("approvalNumber").value = field.value;
+        //             break;
+        //     }
+        // });
+
+        // ===== 수정 코드 (구조 안전 + 디버깅 포함) =====
+        confirmedData.forEach(field => {
+            console.log("OCR field raw:", field);
+
+            const type = field.type;
+            // value가 객체일 수도 있으므로 안전하게 처리
+            const value =
+                typeof field.value === "object" && field.value !== null
+                    ? field.value.text ?? ""
+                    : field.value;
+
+            console.log("parsed type:", type, "parsed value:", value);
+
+            switch (type) {
+                case 'SHOP_NAME':
+                    extracted.shopName = value;
+                    document.getElementById("shopName").value = value;
+                    break;
+
+                case 'AMOUNT':
+                    extracted.amount = value;
+                    document.getElementById("totalAmount").value = value;
+                    break;
+
+                case 'DATE_TIME':
+                    extracted.dateTime = value;
+                    document.getElementById("paymentDate").value = value;
+                    break;
+
+                case 'BUSINESS_NUMBER':
+                    extracted.businessNumber = value;
+                    document.getElementById("businessNumber").value = value;
+                    break;
+
+                case 'APPROVAL_NUMBER':
+                    extracted.approvalNumber = value;
+                    document.getElementById("approvalNumber").value = value;
+                    break;
+
+                default:
+                    console.warn("처리되지 않은 OCR 타입:", type);
+            }
+        });
+
+        currentDraft = extracted; //전역 변수 업데이트
+        console.log("최종 currentDraft:", currentDraft);
+
+        // 2. UI 필드에 값 세팅 (사용자가 수정할 수 있도록)
+        document.getElementById("shopName").value = currentDraft.shopName || "";
+        document.getElementById("totalAmount").value = currentDraft.amount || "";
+        document.getElementById("paymentDate").value = currentDraft.dateTime || "";
+
+        // Hidden 필드에 저장 (수정 불가 데이터)
+        document.getElementById("businessNumber").value = currentDraft.businessNumber || "";
+        document.getElementById("approvalNumber").value = currentDraft.approvalNumber || "";
+
+        document.getElementById("checkOcrSection").style.display = "block";
+
+        if (!currentDraft.amount || !currentDraft.dateTime || !currentDraft.shopName
+                || !currentDraft.businessNumber || !currentDraft.approvalNumber) {
+                    document.getElementById("saveReceipt").disabled = true;
+                }
+
     } catch (error) {
-        console.error("OCR 업로드 실패:", error);
-        alert(`오류 발생: ${error}`);
+        console.error("OCR 실패:", error);
     }
 });
 
-// 2) 영수증 저장 버튼 클릭 이벤트
+/**
+ * 2) 영수증 저장 (DTO 전송)
+ */
 document.getElementById("saveReceipt").addEventListener("click", async () => {
-    // 수정된 값 가져오기
-    const updatedShopName = document.getElementById("shopName").value;
-    const updatedTotalAmount = document.getElementById("totalAmount").value;
-    const updatedPaymentDate = document.getElementById("paymentDate").value;
 
-    // 기존 OCR 데이터와 수정된 데이터를 병합
-    const finalReceiptData = {
-        ...currentReceiptData,
-        receiptShopName: updatedShopName,
-        receiptAmount: updatedTotalAmount,
-        receiptDate: updatedPaymentDate
+    // 1. DTO 구조에 맞게 데이터 수집
+    const receiptRequest = {
+        receiptShopName: document.getElementById("shopName").value,
+        receiptAmount: parseInt(document.getElementById("totalAmount").value.replace(/[^0-9]/g, "") || 0),
+        receiptDate: document.getElementById("paymentDate").value,
+        receiptBusinessNumber: document.getElementById("businessNumber").value,
+        receiptApprovalNumber: document.getElementById("approvalNumber").value
     };
 
+    // 2. 검증 (바뀐 필드명으로 체크)
+    if (!receiptRequest.receiptBusinessNumber || !receiptRequest.receiptShopName) {
+        alert("영수증 정보(사업자번호 또는 업체명)가 부족합니다. 다시 시도해주세요.");
+        return;
+    }
+
+    if (!receiptRequest.receiptAmount || !receiptRequest.receiptDate) {
+        alert("결제 금액과 결제 날짜를 확인해주세요. 다시 시도해주세요.");
+        return;
+    }
+
     try {
-        // /api/receipt/save 엔드포인트로 POST 요청 (JSON 전송)
         const response = await fetch("/api/receipt/save", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(finalReceiptData),
-            credentials: "include", // JWT 쿠키가 필요하면 주석 해제
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(receiptRequest)
         });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        const saveResult = await response.json();
+        if (response.ok) {
+            alert("영수증 인증이 완료되었습니다.");
+            window.location.href = `/review/create?receiptId=${saveResult.data.receiptId}`;
         }
 
-        const saveResult = await response.json();
-        alert("영수증 인증이 완료되었습니다!");
-        console.log("영수증 저장 결과:", saveResult);
-        // saveResult.data.receiptId가 저장된 영수증 ID라고 가정
-        const receiptId = saveResult.data.receiptId;
-
-        window.location.href = `/review/create?receiptId=${receiptId}`;
-        // 영수증 저장 후 리뷰 작성 폼 페이지로 이동
     } catch (error) {
-        console.error("영수증 저장 실패:", error);
-        alert(`오류 발생: ${error}`);
+        console.error("저장 실패:", error);
     }
 });

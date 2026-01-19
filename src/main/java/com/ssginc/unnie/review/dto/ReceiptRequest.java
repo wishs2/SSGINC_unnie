@@ -1,20 +1,25 @@
 package com.ssginc.unnie.review.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
 @AllArgsConstructor
+@NoArgsConstructor
 public class ReceiptRequest {
     private long receiptId; //영수증 번호
     private long receiptShopId; //shopId
-    private LocalDateTime receiptDate; //영수증 내 결제 일시
+    private LocalDateTime receiptDate;//영수증 내 결제 일시
     private int receiptAmount; //결제 금액
     private String receiptBusinessNumber; //사업자 번호
     private String receiptApprovalNumber; //승인 번호
     private String receiptShopName; //영수증 내 가게 이름
-    private List<ReceiptItemRequest> items; //영수증 내 상품들
+//    private List<ReceiptItemRequest> items; //영수증 내 상품들
 }

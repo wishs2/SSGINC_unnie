@@ -2,13 +2,13 @@ package com.ssginc.unnie.review.service.serviceImpl;
 
 import com.ssginc.unnie.common.exception.UnnieReviewException;
 import com.ssginc.unnie.common.util.ErrorCode;
-import com.ssginc.unnie.reservation.dto.ReservationResponse;
 import com.ssginc.unnie.reservation.service.ReservationService;
 import com.ssginc.unnie.review.debounce.ReviewCreatedEvent;
 import com.ssginc.unnie.review.dto.*;
 import com.ssginc.unnie.review.mapper.ReviewMapper;
 import com.ssginc.unnie.review.service.OpenAIService;
 import com.ssginc.unnie.review.service.ReceiptService;
+import com.ssginc.unnie.review.service.ReceiptVerificationService;
 import com.ssginc.unnie.review.service.ReviewService;
 import com.ssginc.unnie.common.util.validation.Validator;
 import lombok.RequiredArgsConstructor;
@@ -30,10 +30,11 @@ import java.util.stream.Collectors;
 public class ReviewServiceImpl implements ReviewService {
 
     private final ReviewMapper reviewMapper;
-    private final ReceiptService receiptService;  // 영수증 인증 검증 서비스
+    private final ReceiptService receiptService;
+    private final ReceiptVerificationService receiptVerificationService;
     private final Validator<ReviewRequestBase> reviewValidator;  // ReviewValidator (ReviewRequestBase 타입)
     private final OpenAIService openAIService;
-    private final ReservationService reservationService;
+//    private final ReservationService reservationService;
 
     // ApplicationEventPublisher를 생성자 주입 방식으로 주입받습니다.
     private final ApplicationEventPublisher eventPublisher;
@@ -43,71 +44,61 @@ public class ReviewServiceImpl implements ReviewService {
     @Transactional(rollbackFor = Exception.class)
     public long createReview(ReviewCreateRequest reviewCreateRequest) {
 
-        long shopId = 0L; // 이벤트를 위해 샵 ID 추출 필요
+        long shopId = 0L;
 
         // ==========================================
         // CASE 1: 영수증 기반 리뷰
         // ==========================================
         if (reviewCreateRequest.getReviewReceiptId() != null) {
-            // 1-1. 영수증 인증 검증
-            if (!receiptService.isReceiptVerified(reviewCreateRequest.getReviewReceiptId())) {
-                throw new UnnieReviewException(ErrorCode.INVALID_RECEIPT);
-            }
-            // 1-2. 샵 ID 조회
-            shopId = receiptService.getShopIdByReceiptId(reviewCreateRequest.getReviewReceiptId());
-        }
-        // ==========================================
-        // CASE 2: 예약 기반 리뷰
-        // ==========================================
-        else if (reviewCreateRequest.getReviewReservationId() != null) {
-            // 2-1. 예약 정보 조회
-            ReservationResponse reservation = reservationService.getReservationById(reviewCreateRequest.getReviewReservationId());
 
-            if (reservation == null) {
-                // 적절한 에러코드가 없다면 추가 필요 (예: RESERVATION_NOT_FOUND)
-                throw new UnnieReviewException(ErrorCode.REVIEW_NOT_FOUND);
-            }
+            // 1. 영수증 검증 + 리뷰 컨텍스트 확보
+            ReceiptForReviewContext receiptContext =
+                    receiptVerificationService.verifyForReview(
+                            reviewCreateRequest.getReviewReceiptId()
+                    );
 
-            // 2-2. 본인 확인 (예약자 == 리뷰 작성자)
-            if (reservation.getMemberId() != reviewCreateRequest.getReviewMemberId()) {
-                throw new UnnieReviewException(ErrorCode.INVALID_ACCESS_TOKEN);
-            }
-            // 2-4. 시간 체크 (혹시 모르니 종료 시간이 지났는지 이중 체크)
-            if (LocalDateTime.now().isBefore(reservation.getEndTime())) {
-                throw new UnnieReviewException(ErrorCode.REVIEW_TOO_EARLY);
-            }
-
-            // 2-5. 샵 ID 확보
-            shopId = reservation.getShopId();
+            // 2. shopId 추출 (이벤트용)
+            shopId = receiptContext.getShopId();
         }
 
-
-        // 3. 리뷰 내용 유효성 검증 (공통)
+        // ==========================================
+        // 공통: 리뷰 내용 검증
+        // ==========================================
         if (!reviewValidator.validate(reviewCreateRequest)) {
             throw new UnnieReviewException(ErrorCode.INVALID_REVIEW_CONTENT);
         }
 
-        // 4. 리뷰 등록 (review 테이블)
-        // Mapper XML에서 <if>문 없이 값들을 넣고 있는데, null인 필드는 DB에 null로 들어갑니다.
-        // (reviewCreateRequest 안에는 receiptId, reservationId 중 하나만 값이 있고 하나는 null임)
+        // ==========================================
+        // 리뷰 등록
+        // ==========================================
         int insertCount = reviewMapper.insertReview(reviewCreateRequest);
         if (insertCount == 0) {
             throw new UnnieReviewException(ErrorCode.DUPLICATE_REVIEW);
         }
 
-        // 5. review_keyword 등록
-        int keywordInsertCount = reviewMapper.insertReviewKeywordsForCreate(reviewCreateRequest);
+        // ==========================================
+        // 키워드 등록
+        // ==========================================
+        int keywordInsertCount =
+                reviewMapper.insertReviewKeywordsForCreate(reviewCreateRequest);
+
         if (keywordInsertCount == 0) {
             throw new UnnieReviewException(ErrorCode.KEYWORDS_NOT_FOUND);
         }
 
-        // 6. 이벤트 발행 (AI 요약 트리거)
+        // ==========================================
+        // 이벤트 발행 (AI 요약)
+        // ==========================================
         if (shopId > 0) {
-            eventPublisher.publishEvent(new ReviewCreatedEvent(this, shopId));
+            eventPublisher.publishEvent(
+                    new ReviewCreatedEvent(this, shopId)
+            );
         }
 
         return reviewCreateRequest.getReviewId();
     }
+
+
     /**
      * 리뷰 조회: reviewId에 해당하는 리뷰 상세 정보를 반환합니다.
      *

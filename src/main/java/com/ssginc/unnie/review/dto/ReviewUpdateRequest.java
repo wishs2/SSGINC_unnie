@@ -28,7 +28,8 @@ public class ReviewUpdateRequest extends ReviewRequestBase{
                                LocalDateTime reviewDate, // 리뷰 작성 일시 수정
                                List<Integer> keywordId, // 수정될 키워드 목록
                                MultipartFile file) {
-        super(reviewId, reviewMemberId, reviewReceiptId, null, reviewImage, reviewRate, reviewContent, keywordId, file);        this.reviewDate = reviewDate;
+        super(reviewId, reviewMemberId, reviewReceiptId, reviewImage, reviewRate, reviewContent, keywordId, file);
+        this.reviewDate = reviewDate;
         this.file = file;
     }
 }

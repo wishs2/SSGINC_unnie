@@ -22,6 +22,18 @@
         WHERE receipt_id = #{receiptId}
     </select>
 
+    <select id="findReceiptForReviewContext"
+            parameterType="long"
+            resultType="com.ssginc.unnie.review.dto.ReceiptForReviewContext">
+        SELECT
+        receipt_id AS receiptId,
+        receipt_shop_id AS receiptShopId,
+        receipt_approval_number AS receiptApprovalNumber,
+        receipt_date AS receiptDate
+        FROM receipt
+        WHERE receipt_id = #{receiptId}
+    </select>
+
     <!-- 업체 이름으로 샵ID 조회 (receipt insert) -->
     <select id="findShopIdByName" resultType="int">
         SELECT shop_id FROM shop WHERE TRIM(shop_name) = #{shopName} LIMIT 1

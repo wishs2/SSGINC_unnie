@@ -127,7 +127,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 </div>
                 <!-- 리뷰 이미지 -->
                 <div class="review-image-section">
-                    ${review.reviewImage ? `<img src="${review.reviewImage}" alt="리뷰 이미지">` : `<img src="/img/review/icon.png" alt="기본 이미지">`}
+                    ${review.reviewImage ? `<img src="${review.reviewImage}" alt="리뷰 이미지">` : `<img src="/img/review/reviewDefault.png" alt="기본 이미지">`}
                 </div>
                 <!-- 리뷰 내용 (보기 모드) -->
                 <div class="review-content view-content">${review.reviewContent}</div>
