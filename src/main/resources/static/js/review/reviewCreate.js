@@ -3,6 +3,12 @@ document.addEventListener("DOMContentLoaded", function () {
     const params = new URLSearchParams(window.location.search);
     const receiptId = params.get("receiptId");
     const reservationId = params.get("reservationId");
+    //URL 파라미터 조작으로 리뷰 페이지 진입 방지
+    if (!receiptId) {
+        alert("영수증 인증이 완료되지 않았습니다.");
+        window.location.replace("/review/ocr");
+        return;
+    }
     if (receiptId) {
         document.getElementById("reviewReceiptId").value = receiptId;
     }
@@ -57,18 +63,30 @@ document.addEventListener("DOMContentLoaded", function () {
             credentials: "include",
             body: formData
         })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 201) {
-                    alert("리뷰 작성이 완료되었습니다!");
-                    window.location.href = "/mypage/review"
-                } else {
-                    alert("리뷰 작성 실패: " + data.message);
-                }
-            })
-            .catch(error => {
-                console.error("Error:", error);
-                alert("서버 오류가 발생했습니다.");
-            });
+            .then(response => response.json()) //JSON 파싱
+                  .then(data => {
+                       console.log("리뷰 생성 응답:", data);
+
+                       if (data.status === 201) {
+                           alert("리뷰 작성이 완료되었습니다!");
+
+                           const shopId = data.data.shopId;
+
+                           //업체 리뷰 목록 페이지로 이동
+                           window.location.href = `/review/shop?shopId=${shopId}`;
+                           return;
+                       }
+
+                       if (data.code === "RV008") {
+                           alert("동일 영수증에 대해 리뷰를 중복 작성할 수 없습니다.");
+                           return;
+                       }
+
+                            alert("리뷰 작성 실패: " + data.message);
+                  })
+                    .catch(error => {
+                     console.error("Error:", error);
+                     alert("서버 오류가 발생했습니다.");
+                    });
     });
 });
