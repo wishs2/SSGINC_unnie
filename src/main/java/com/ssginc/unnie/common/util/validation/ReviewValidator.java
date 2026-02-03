@@ -13,7 +13,7 @@ import java.util.List;
 @Component
 public class ReviewValidator implements Validator<ReviewRequestBase> {
 
-    private static final int MIN_REVIEW_LENGTH = 10;
+    private static final int MIN_REVIEW_LENGTH = 1;
     private static final int MAX_REVIEW_LENGTH = 400;
     private static final int MIN_RATING = 1;
     private static final int MAX_RATING = 5;
