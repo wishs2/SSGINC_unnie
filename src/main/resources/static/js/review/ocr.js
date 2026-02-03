@@ -31,33 +31,6 @@ document.getElementById("ocrForm").addEventListener("submit", async (e) => {
 
         let extracted = {};
 
-        // ===== 기존 코드 (문제 있는 부분) =====
-        // confirmedData.forEach(field => {
-        //     switch(field.type) {
-        //         case 'SHOP_NAME':
-        //             extracted.shopName = field.value;
-        //             document.getElementById("shopName").value = field.value;
-        //             break;
-        //         case 'AMOUNT':
-        //             extracted.amount = field.value;
-        //             document.getElementById("totalAmount").value = field.value;
-        //             break;
-        //         case 'DATE_TIME':
-        //             extracted.dateTime = field.value;
-        //             document.getElementById("paymentDate").value = field.value;
-        //             break;
-        //         case 'BUSINESS_NUMBER':
-        //             extracted.businessNumber = field.value;
-        //             document.getElementById("businessNumber").value = field.value;
-        //             break;
-        //         case 'APPROVAL_NUMBER':
-        //             extracted.approvalNumber = field.value;
-        //             document.getElementById("approvalNumber").value = field.value;
-        //             break;
-        //     }
-        // });
-
-        // ===== 수정 코드 (구조 안전 + 디버깅 포함) =====
         confirmedData.forEach(field => {
             console.log("OCR field raw:", field);
 
@@ -158,12 +131,25 @@ document.getElementById("saveReceipt").addEventListener("click", async () => {
         });
 
         const saveResult = await response.json();
-        if (response.ok) {
-            alert("영수증 인증이 완료되었습니다.");
-            window.location.href = `/review/create?receiptId=${saveResult.data.receiptId}`;
+        // 실패 케이스
+        //영수증 중복 예외처리
+        if (!response.ok) {
+            if (saveResult.code === 'RV026') {
+                alert('이미 리뷰가 작성된 영수증입니다.');
+                return;
+            }
+
+            alert(saveResult.message || '영수증 저장에 실패했습니다.');
+            return;
         }
+
+        // 성공 케이스
+        alert("영수증 인증이 완료되었습니다.");
+        window.location.href = `/review/create?receiptId=${saveResult.data.receiptId}`;
 
     } catch (error) {
         console.error("저장 실패:", error);
+        alert("서버 통신 중 오류가 발생했습니다.");
     }
+
 });

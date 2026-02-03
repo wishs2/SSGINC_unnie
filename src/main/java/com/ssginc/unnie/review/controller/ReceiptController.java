@@ -30,25 +30,15 @@ public class ReceiptController {
      */
     @PostMapping("/save")
     public ResponseEntity<ResponseDto<ReceiptResponse>> saveReceipt
-                                        (@RequestBody ReceiptRequest receiptRequest) {
-        log.info("영수증 데이터: {}", receiptRequest); // 여기서 데이터가 잘 들어오는지 로그 확인 필수!
+    (@RequestBody ReceiptRequest receiptRequest) {
+        log.info("영수증 데이터: {}", receiptRequest); //데이터가 잘 들어오는지 로그 확인
 
-        try {
-            if (!receiptSaveValidator.validate(receiptRequest)) {
-                return ResponseEntity.badRequest()
-                        .body(new ResponseDto<>(HttpStatus.BAD_REQUEST.value(), "필수 데이터가 누락되었습니다.", null));
-            }
+        ReceiptResponse savedReceipt = receiptService.saveReceipt(receiptRequest);
 
-            ReceiptResponse savedReceipt = receiptService.saveReceipt(receiptRequest);
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(new ResponseDto<>(HttpStatus.CREATED.value(), "저장 성공", savedReceipt));
-
-        } catch (Exception e) {
-            log.error("저장 중 에러 발생: ", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ResponseDto<>(500, "서버 오류: " + e.getMessage(), null));
-        }
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new ResponseDto<>(HttpStatus.CREATED.value(), "저장 성공", savedReceipt));
     }
+
 
     /**
      * 특정 영수증 조회

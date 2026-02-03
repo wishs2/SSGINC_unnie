@@ -100,8 +100,8 @@ public enum ErrorCode {
     REVIEW_FILE_EXCEEDED(400, "RV005", "최대 5장의 이미지를 첨부할 수 있습니다."),
     INVALID_REVIEW_CONTENT(400, "RV006", "리뷰 내용이 형식에 맞지 않습니다."),
     REVIEW_LENGTH_EXCEEDED(400, "RV007", "리뷰 길이가 제한을 초과했습니다."),
-    DUPLICATE_REVIEW(400, "RV008", "동일한 리뷰를 중복 작성할 수 없습니다."),
-    EXPIRED_RECEIPT(400, "RV009", "영수증 사용 기한이 만료되었습니다."),
+    DUPLICATE_REVIEW(409, "RV008", "동일한 리뷰를 중복 작성할 수 없습니다."),
+    EXPIRED_RECEIPT(400, "RV009", "리뷰 작성 가능한 영수증의 기한이 만료되었습니다."),
     INVALID_RECEIPT(400, "RV010", "유효하지 않은 영수증입니다."),
     OCR_PROCESSING_FAILED(400, "RV011", "OCR 분석 중 오류가 발생했습니다."),
     INVALID_AI_SUMMARY(400, "RV012", "리뷰 요약 중 오류가 발생했습니다."),
@@ -118,6 +118,13 @@ public enum ErrorCode {
     REVIEW_SEARCH_FAILED(500, "RV023", "리뷰를 가져오는 중 오류가 발생했습니다."),
     REVIEW_RATE_REQUIRED(400, "RV024", "리뷰 별점은 필수 입력 항목입니다."),
     REVIEW_RATE_EXCEEDED(400, "RV025", "리뷰 별점은 최대 5개까지 입력 가능합니다."),
+    DUPLICATE_RECEIPT(409, "RV026", "이미 인증된 영수증입니다."),
+    KEYWORDS_DELETE_FAILED(404, "RV027", "키워드 삭제에 실패하였습니다."),
+    INVALID_RECEIPT_APPROVALNumber(400, "RV028", "유효하지 않은 승인번호입니다."),
+    RECEIPT_SAVE_FAILED(500, "RV029", "영수증 저장에 실패했습니다."),
+    REVIEW_CREATE_FAILED(500, "RV030", "리뷰 작성에 실패했습니다."),
+    INVALID_REVIEW_AUTHOR(400, "RV031", "리뷰 작성자가 다릅니다."),
+
 
     // =================================== 게시글 관련 에러 =====================================================
     BOARD_CATEGORY_REQUIRED(400, "BO001", "게시글 카테고리는 필수 입력 항목입니다."),

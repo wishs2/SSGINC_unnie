@@ -32,7 +32,7 @@ public class ReceiptVerificationServiceImpl implements ReceiptVerificationServic
         // 승인번호 검증
         if (receipt.getReceiptApprovalNumber() == null ||
                 receipt.getReceiptApprovalNumber().equals("데이터 없음")) {
-            throw new UnnieReviewException(ErrorCode.INVALID_RECEIPT);
+            throw new UnnieReviewException(ErrorCode.INVALID_RECEIPT_APPROVALNumber);
         }
 
         // 30일 이내
