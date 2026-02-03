@@ -9,6 +9,7 @@ import com.ssginc.unnie.review.service.ReceiptService;
 import com.ssginc.unnie.common.util.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,27 +30,35 @@ public class ReceiptServiceImpl implements ReceiptService {
     public ReceiptResponse saveReceipt(ReceiptRequest receiptRequest) {
 
         // 1. 데이터 검증 (주입받은 Validator 활용)
-        receiptSaveValidator.validate(receiptRequest);
+        if (!receiptSaveValidator.validate(receiptRequest)) {
+            throw new UnnieReviewException(ErrorCode.INVALID_RECEIPT);
+        }
 
         // 2. shop 이름 정규화 (전처리)
         String normalizedShopName = receiptRequest.getReceiptShopName().trim().replaceAll("\\s+", " ");
         receiptRequest.setReceiptShopName(normalizedShopName);
 
         // 3. shopID 매핑 로직 개선
-        // 결과가 없을 경우를 대비해 Integer로 받거나 명확한 체크 필요
         Integer shopId = receiptMapper.findShopIdByName(normalizedShopName);
         if (shopId != null && shopId > 0) {
             receiptRequest.setReceiptShopId(shopId);
         } else {
             log.warn("해당 이름의 업체를 찾을 수 없음: {}", normalizedShopName);
-            // 필요시 새로운 업체를 등록하거나, 특정 에러를 던질 수 있음
         }
 
         // 4. 영수증 저장
-        receiptMapper.insertReceipt(receiptRequest);
+        try {
+            receiptMapper.insertReceipt(receiptRequest);
+        } catch (DataIntegrityViolationException e) {
+            log.warn("중복 영수증 저장 시도", e);
+            throw new UnnieReviewException(ErrorCode.DUPLICATE_RECEIPT);
+        } catch (Exception e) {
+            log.error("영수증 저장 실패", e);
+            throw new UnnieReviewException(ErrorCode.RECEIPT_SAVE_FAILED);
+        }
 
-        // 5. 응답 생성 (receiptRequest에 담긴 자동 생성된 ID 활용)
-        return ReceiptResponse.from(receiptRequest); // ReceiptResponse에 정적 팩토리 메서드 추가
+        // 5. 응답 생성
+        return ReceiptResponse.from(receiptRequest);
     }
 
 

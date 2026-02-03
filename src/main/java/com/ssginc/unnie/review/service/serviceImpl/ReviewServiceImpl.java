@@ -14,6 +14,7 @@ import com.ssginc.unnie.common.util.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,11 +33,10 @@ public class ReviewServiceImpl implements ReviewService {
     private final ReviewMapper reviewMapper;
     private final ReceiptService receiptService;
     private final ReceiptVerificationService receiptVerificationService;
-    private final Validator<ReviewRequestBase> reviewValidator;  // ReviewValidator (ReviewRequestBase 타입)
+    private final Validator<ReviewRequestBase> reviewValidator;
     private final OpenAIService openAIService;
 //    private final ReservationService reservationService;
 
-    // ApplicationEventPublisher를 생성자 주입 방식으로 주입받습니다.
     private final ApplicationEventPublisher eventPublisher;
 
 
@@ -51,13 +51,11 @@ public class ReviewServiceImpl implements ReviewService {
         // ==========================================
         if (reviewCreateRequest.getReviewReceiptId() != null) {
 
-            // 1. 영수증 검증 + 리뷰 컨텍스트 확보
             ReceiptForReviewContext receiptContext =
                     receiptVerificationService.verifyForReview(
                             reviewCreateRequest.getReviewReceiptId()
                     );
 
-            // 2. shopId 추출 (이벤트용)
             shopId = receiptContext.getShopId();
         }
 
@@ -68,22 +66,28 @@ public class ReviewServiceImpl implements ReviewService {
             throw new UnnieReviewException(ErrorCode.INVALID_REVIEW_CONTENT);
         }
 
-        // ==========================================
-        // 리뷰 등록
-        // ==========================================
-        int insertCount = reviewMapper.insertReview(reviewCreateRequest);
-        if (insertCount == 0) {
-            throw new UnnieReviewException(ErrorCode.DUPLICATE_REVIEW);
-        }
+        try {
+            // ==========================================
+            // 리뷰 등록
+            // ==========================================
+            int insertCount = reviewMapper.insertReview(reviewCreateRequest);
+            if (insertCount == 0) {
+                throw new UnnieReviewException(ErrorCode.REVIEW_CREATE_FAILED);
+            }
 
-        // ==========================================
-        // 키워드 등록
-        // ==========================================
-        int keywordInsertCount =
-                reviewMapper.insertReviewKeywordsForCreate(reviewCreateRequest);
+            // ==========================================
+            // 키워드 등록
+            // ==========================================
+            int keywordInsertCount =
+                    reviewMapper.insertReviewKeywordsForCreate(reviewCreateRequest);
 
-        if (keywordInsertCount == 0) {
-            throw new UnnieReviewException(ErrorCode.KEYWORDS_NOT_FOUND);
+            if (keywordInsertCount == 0) {
+                throw new UnnieReviewException(ErrorCode.REVIEW_KEYWORDS_REQUIRED);
+            }
+
+        } catch (DataIntegrityViolationException e) {
+            // 같은 사용자 + 같은 영수증 리뷰 중복
+            throw new UnnieReviewException(ErrorCode.DUPLICATE_REVIEW, e);
         }
 
         // ==========================================
@@ -146,7 +150,7 @@ public class ReviewServiceImpl implements ReviewService {
                 reviewUpdateRequest.getReviewMemberId()
         );
         if (ownership == null || ownership != 1) {
-            throw new UnnieReviewException(ErrorCode.INVALID_ACCESS_TOKEN);
+            throw new UnnieReviewException(ErrorCode.INVALID_REVIEW_AUTHOR);
         }
 
         // 2. 리뷰 요청 유효성 검증 (ReviewValidator 활용)
@@ -183,7 +187,7 @@ public class ReviewServiceImpl implements ReviewService {
     public int deleteReviewKeywords(long reviewId) {
         int deleteCount = reviewMapper.deleteReviewKeywords(reviewId);
         if (deleteCount == 0) {
-            throw new UnnieReviewException(ErrorCode.KEYWORDS_NOT_FOUND);
+            throw new UnnieReviewException(ErrorCode.KEYWORDS_DELETE_FAILED);
         }
         return deleteCount;
     }
@@ -226,7 +230,7 @@ public class ReviewServiceImpl implements ReviewService {
     public List<ReviewGetResponse> getReviewListByShop(long shopId, String keyword, String sortType, int offset, int limit) {
         // 입력값 검증
         if (shopId <= 0) {
-            throw new IllegalArgumentException("유효하지 않은 업체 ID입니다.");
+            throw new UnnieReviewException(ErrorCode.SHOP_NOT_FOUND);
         }
         // keyword가 null이면 빈 문자열로 설정 (쿼리에서 null 체크와 동일하게 동작하도록)
         if (keyword == null) {
@@ -270,7 +274,7 @@ public class ReviewServiceImpl implements ReviewService {
     public List<ReviewGuestGetResponse> getReviewListByShopGuest(long shopId, String keyword, String sortType, int offset, int limit) {
         // 입력값 검증 및 기본값 설정 (위와 동일)
         if (shopId <= 0) {
-            throw new IllegalArgumentException("유효하지 않은 업체 ID입니다.");
+            throw new UnnieReviewException(ErrorCode.SHOP_NOT_FOUND);
         }
         if (keyword == null) {
             keyword = "";
@@ -320,7 +324,7 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     public int getReviewCountByShop(long shopId, String keyword) {
         if (shopId <= 0) {
-            throw new IllegalArgumentException("유효하지 않은 업체 ID입니다.");
+            throw new UnnieReviewException(ErrorCode.SHOP_NOT_FOUND);
         }
         // keyword가 null이면 빈 문자열로 처리하여 if 조건이 false가 되도록 함
         if (keyword == null) {

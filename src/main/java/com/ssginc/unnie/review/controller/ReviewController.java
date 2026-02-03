@@ -42,16 +42,21 @@ public class ReviewController {
      * JWT 토큰을 통해 인증된 회원의 memberId를 ReviewCreateRequest에 세팅합니다.
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ResponseDto<Map<String, String>>> createReview(@AuthenticationPrincipal MemberPrincipal memberPrincipal, @ModelAttribute ReviewCreateRequest reviewCreateRequest, @RequestParam("keywordId") String keywordId) {
+    public ResponseEntity<ResponseDto<Map<String, String>>> createReview(
+            @AuthenticationPrincipal MemberPrincipal memberPrincipal,
+            @ModelAttribute ReviewCreateRequest reviewCreateRequest,
+            @RequestParam("keywordId") String keywordId) {
 
-        // 1️⃣ 로그인 체크
+        // 1. 로그인 체크
         if (memberPrincipal == null) {
             throw new IllegalStateException("로그인이 필요합니다.");
         }
 
-        // 2️⃣ 영수증 리뷰 가능 여부 체크
+        // 2. 영수증 리뷰 가능 여부 체크
         ReceiptForReviewContext receiptContext =
-                receiptVerificationService.verifyForReview(reviewCreateRequest.getReviewReceiptId());
+                receiptVerificationService.verifyForReview(
+                        reviewCreateRequest.getReviewReceiptId()
+                );
 
         // shopId 확보 (이벤트용)
         long shopId = receiptContext.getShopId();
@@ -72,7 +77,15 @@ public class ReviewController {
         // 6. 리뷰 생성
         long reviewId = reviewService.createReview(reviewCreateRequest);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(new ResponseDto<>(HttpStatus.CREATED.value(), "리뷰 작성에 성공했습니다.", Map.of("reviewId", String.valueOf(reviewId))));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new ResponseDto<>(
+                        HttpStatus.CREATED.value(),
+                        "리뷰 작성에 성공했습니다.",
+                        Map.of(
+                                "reviewId", String.valueOf(reviewId),
+                                "shopId", String.valueOf(shopId)
+                        )
+                ));
     }
 
 
@@ -121,7 +134,7 @@ public class ReviewController {
 
     /**
      * 리뷰 수정
-     * JWT 토큰에서 추출한 memberId를 DTO에 세팅하여, 소유자 확인 후 수정합니다.
+     * 소유자 확인 후 리뷰 수정
      */
     @PutMapping("/{reviewId}")
     public ResponseEntity<ResponseDto<Map<String, String>>> updateReview(@PathVariable("reviewId") long reviewId, @AuthenticationPrincipal MemberPrincipal memberPrincipal, @RequestBody ReviewUpdateRequest reviewUpdateRequest, @RequestParam(value = "keywordId", required = false) String keywordId) {
@@ -232,7 +245,7 @@ public class ReviewController {
     }
 
     /**
-     * 업체 리뷰 개수 조회 REST API
+     * 업체 리뷰 개수 조회
      *
      * @param shopId  업체 ID (경로 변수)
      * @param keyword 필터링할 키워드 (없으면 빈 문자열)
