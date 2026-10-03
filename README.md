@@ -17,8 +17,9 @@
 > 프로젝트 종료 후 OCR 데이터 처리 구조를 개인적으로 리팩토링했습니다.
 > 
 > 해당 내용은 Portfolio의 Problem Solving에서 자세히 확인할 수 있습니다.
-> ## 📄 Portfolio
-[Backend Portfolio PDF 보기](/backend-portfolio.pdf)
+
+## 📄 Portfolio
+> [Backend Portfolio PDF 보기](/backend-portfolio.pdf)
 
 ---
 
