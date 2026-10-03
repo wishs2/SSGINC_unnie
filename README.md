@@ -19,7 +19,7 @@
 > 해당 내용은 Portfolio의 Problem Solving에서 자세히 확인할 수 있습니다.
 
 ## 📄 Portfolio
-> [Backend Portfolio PDF 보기](/backend-portfolio.pdf)
+[Backend Portfolio PDF 보기](/backend-portfolio.pdf)
 
 ---
 
